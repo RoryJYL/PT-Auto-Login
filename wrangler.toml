@@ -11,8 +11,5 @@ enabled = true
 binding = "PAL"
 id = "dc2d2a2880fe409183508e2cda96282e"
 
-[browser]
-binding = "PAL_BROWSER"
-
 [triggers]
 crons = ["0 16 * * *"]

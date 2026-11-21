@@ -8,7 +8,7 @@ const sitesRegex = [
     name: 'BTSCHOOL',
   },
   {
-    regex: /https:\/\/(www\.)?haidan\.video.*/,
+    regex: /https:\/\/(www\.)?haidan\.cc.*/,
     name: 'HAIDAN',
   },
 ]

@@ -1,11 +1,5 @@
 import { runCookieTasks } from './task'
-import { closeBrowser } from './browser'
-
-export type SiteConfig = {
-  name: string
-  url: string
-  cookies: string
-}
+import type { SiteConfig } from './type'
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
@@ -15,7 +9,7 @@ export default {
         return new Response('No config found', { status: 404 })
       }
 
-      await autoLogin(siteConfigs, env)
+      await autoLogin(siteConfigs)
 
       return new Response('Login tasks completed.', { status: 200 })
     } catch (error) {
@@ -31,28 +25,22 @@ export default {
       if (!siteConfigs) {
         throw new Error('No config found')
       }
-      await autoLogin(siteConfigs, env)
+      await autoLogin(siteConfigs)
     } catch (error) {
       console.error(error)
     }
   },
 } satisfies ExportedHandler<Env>
 
-async function autoLogin(siteConfigs: SiteConfig[], env: Env) {
-  const taskConfigs = siteConfigs.map((siteConfig) => {
-    // const delayMillis = Math.floor(Math.random() * 300000)
-    // const delayMillis = Math.floor(Math.random() * 60000)
-    const delayMillis = Math.floor(Math.random() * 100)
-    return { ...siteConfig, delay: delayMillis }
-  })
+async function autoLogin(siteConfigs: SiteConfig[]) {
+  const taskConfigs = siteConfigs.map((siteConfig) => ({
+    ...siteConfig,
+    delay: Math.floor(Math.random() * 100),
+  }))
 
   console.log('[START] Start login tasks.')
 
-  try {
-    await runCookieTasks(taskConfigs, env)
-  } finally {
-    await closeBrowser()
-  }
+  await runCookieTasks(taskConfigs)
 
   console.log('[COMPLETE] Tasks completed.')
 }

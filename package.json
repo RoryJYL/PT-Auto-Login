@@ -12,7 +12,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "@cloudflare/puppeteer": "^1.0.5",
     "@cloudflare/vitest-pool-workers": "^0.5.2",
     "@cloudflare/workers-types": "^4.20241011.0",
     "typescript": "^5.5.2",
