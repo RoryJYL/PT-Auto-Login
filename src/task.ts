@@ -1,4 +1,3 @@
-import { parseSiteName } from './parse-site'
 import type { TaskConfig } from './type'
 
 const MAX_ATTEMPTS = 3
@@ -11,16 +10,16 @@ const HAIDAN_SIGNED_MARKER = '已经打卡'
 export async function runCookieTasks(taskConfigs: TaskConfig[]) {
   const results = await Promise.allSettled(
     taskConfigs.map(async (taskConfig) => {
-      const siteName = parseSiteName(taskConfig.url)
-      switch (siteName) {
-        case 'HDFans':
+      // 按配置里的 name 分发，不再拿 URL 猜站点：站点换域名时只改 KV，不用改代码
+      switch (normalizeSiteName(taskConfig.name)) {
+        case 'HDFANS':
         case 'BTSCHOOL':
           return visitTask(taskConfig)
         case 'HAIDAN':
           return haidanSignInTask(taskConfig)
         default:
           throw new Error(
-            `[UNSUPPORTED SITE] ${taskConfig.name} (${taskConfig.url}) 没有对应的处理逻辑，parseSiteName 返回 ${String(siteName)}`,
+            `[UNSUPPORTED SITE] name=${taskConfig.name} url=${taskConfig.url}，目前只支持 HDFans / BTSCHOOL / HAIDAN`,
           )
       }
     }),
@@ -28,9 +27,16 @@ export async function runCookieTasks(taskConfigs: TaskConfig[]) {
 
   results.forEach((result, index) => {
     if (result.status === 'rejected') {
-      console.error(`[TASK FAILED] ${taskConfigs[index].name}:`, result.reason)
+      // 自己拼成一条字符串：直接把 Error 当参数传时线上日志只剩堆栈，message 会丢
+      console.error(
+        `[TASK FAILED] ${taskConfigs[index].name}: ${formatReason(result.reason)}`,
+      )
     }
   })
+}
+
+function normalizeSiteName(name: string) {
+  return name.trim().toUpperCase()
 }
 
 /**
@@ -50,7 +56,9 @@ async function visitTask({ name, url, cookies, delay }: TaskConfig) {
     if (response.status === 200) {
       const body = await response.text()
       if (body.includes('takelogin.php')) {
-        throw new Error(`[VISIT FAILED] ${name} 拿到的是登录页，cookie 已失效`)
+        throw new Error(
+          `[VISIT FAILED] ${name} ${url} 拿到的是登录页，cookie 已失效`,
+        )
       }
       console.log(`[VISIT SUCCESS] ${name} ${url}`)
       return
@@ -58,13 +66,13 @@ async function visitTask({ name, url, cookies, delay }: TaskConfig) {
 
     if (location.includes(LOGIN_URL)) {
       throw new Error(
-        `[VISIT FAILED] ${name} cookie 已失效，被重定向到 ${location}`,
+        `[VISIT FAILED] ${name} ${url} cookie 已失效，被重定向到 ${location}`,
       )
     }
 
     if (attempt === MAX_ATTEMPTS) {
       throw new Error(
-        `[VISIT FAILED] ${name} HTTP ${response.status}${location ? ` -> ${location}` : ''}，${await describe(response)}`,
+        `[VISIT FAILED] ${name} ${url} HTTP ${response.status}${location ? ` -> ${location}` : ''}，${await describe(response)}`,
       )
     }
 
@@ -90,12 +98,12 @@ async function haidanSignInTask({ name, url, cookies, delay }: TaskConfig) {
 
   if (location.includes(LOGIN_URL)) {
     throw new Error(
-      `[SIGNIN FAILED] ${name} cookie 已失效，被重定向到 ${location}`,
+      `[SIGNIN FAILED] ${name} ${url} cookie 已失效，被重定向到 ${location}`,
     )
   }
   if (response.status !== 200 && !isRedirect(response.status)) {
     throw new Error(
-      `[SIGNIN FAILED] ${name} signin.php HTTP ${response.status}，${await describe(response)}`,
+      `[SIGNIN FAILED] ${name} ${signinUrl} HTTP ${response.status}，${await describe(response)}`,
     )
   }
 
@@ -107,7 +115,7 @@ async function haidanSignInTask({ name, url, cookies, delay }: TaskConfig) {
   const body = await page.text()
   if (!body.includes(HAIDAN_SIGNED_MARKER)) {
     throw new Error(
-      `[SIGNIN FAILED] ${name} 打卡后首页没有出现“${HAIDAN_SIGNED_MARKER}”，HTTP ${page.status}`,
+      `[SIGNIN FAILED] ${name} ${url} 打卡后首页没有出现“${HAIDAN_SIGNED_MARKER}”，HTTP ${page.status}`,
     )
   }
 
@@ -124,6 +132,15 @@ async function describe(response: Response) {
 
 function isRedirect(status: number) {
   return status >= 300 && status < 400
+}
+
+function formatReason(reason: unknown) {
+  if (!(reason instanceof Error)) {
+    return String(reason)
+  }
+  // stack 第一行就是 "Name: message"，去掉它，避免和上面的 message 重复
+  const frames = reason.stack?.split('\n').slice(1).join('\n') ?? ''
+  return `${reason.name}: ${reason.message}${frames ? `\n${frames}` : ''}`
 }
 
 function sleep(ms: number) {
