@@ -8,10 +8,11 @@
     "start": "wrangler dev",
     "test": "vitest",
     "cf-typegen": "wrangler types",
-    "format": "biome check --write src/**"
+    "format": "biome check --write .",
+    "lint": "biome check ."
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
+    "@biomejs/biome": "2.6.9",
     "@cloudflare/vitest-pool-workers": "^0.5.2",
     "@cloudflare/workers-types": "^4.20241011.0",
     "typescript": "^5.5.2",

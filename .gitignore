@@ -170,3 +170,6 @@ dist
 
 .dev.vars
 .wrangler/
+
+# pnpm 在本目录建的项目级 store
+.pnpm-store/
