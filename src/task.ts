@@ -1,4 +1,4 @@
-import type { TaskConfig } from './type'
+import type { TaskConfig, TaskResult } from './type'
 
 const MAX_ATTEMPTS = 3
 const RETRY_DELAY = 5_000
@@ -7,7 +7,9 @@ const LOGIN_URL = 'login.php'
 /** HAIDAN 首页在服务端渲染的“今天已打卡”标记 */
 const HAIDAN_SIGNED_MARKER = '已经打卡'
 
-export async function runCookieTasks(taskConfigs: TaskConfig[]) {
+export async function runCookieTasks(
+  taskConfigs: TaskConfig[],
+): Promise<TaskResult[]> {
   const results = await Promise.allSettled(
     taskConfigs.map(async (taskConfig) => {
       // 按配置里的 name 分发，不再拿 URL 猜站点：站点换域名时只改 KV，不用改代码
@@ -25,13 +27,17 @@ export async function runCookieTasks(taskConfigs: TaskConfig[]) {
     }),
   )
 
-  results.forEach((result, index) => {
-    if (result.status === 'rejected') {
-      // 自己拼成一条字符串：直接把 Error 当参数传时线上日志只剩堆栈，message 会丢
-      console.error(
-        `[TASK FAILED] ${taskConfigs[index].name}: ${formatReason(result.reason)}`,
-      )
+  // 单个站失败不影响其他站，所以这里只回收结果，不往外抛
+  return results.map((result, index) => {
+    const { name } = taskConfigs[index]
+    if (result.status === 'fulfilled') {
+      return { name, ok: true }
     }
+
+    // 自己拼成一条字符串：直接把 Error 当参数传时线上日志只剩堆栈，message 会丢
+    console.error(`[TASK FAILED] ${name}: ${formatReason(result.reason)}`)
+    // 存进历史记录的只留 message，堆栈太长，也没必要给前端看
+    return { name, ok: false, message: formatMessage(result.reason) }
   })
 }
 
@@ -141,6 +147,10 @@ function formatReason(reason: unknown) {
   // stack 第一行就是 "Name: message"，去掉它，避免和上面的 message 重复
   const frames = reason.stack?.split('\n').slice(1).join('\n') ?? ''
   return `${reason.name}: ${reason.message}${frames ? `\n${frames}` : ''}`
+}
+
+function formatMessage(reason: unknown) {
+  return reason instanceof Error ? reason.message : String(reason)
 }
 
 function sleep(ms: number) {

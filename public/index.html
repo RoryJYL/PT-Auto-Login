@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PT 签到</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f7f9;
+        --card: #fff;
+        --fg: #16181d;
+        --muted: #6b7280;
+        --line: #e5e7eb;
+        --ok: #188038;
+        --fail: #d1242f;
+        --today: #e8f0fe;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1115;
+          --card: #161a21;
+          --fg: #e6e8ec;
+          --muted: #8b93a1;
+          --line: #262b35;
+          --ok: #3fb950;
+          --fail: #f85149;
+          --today: #1b2536;
+        }
+      }
+
+      body {
+        margin: 0 auto;
+        max-width: 900px;
+        padding: 32px 20px 48px;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          14px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "PingFang SC",
+          "Hiragino Sans GB",
+          "Microsoft YaHei",
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.01em;
+      }
+
+      .range {
+        display: inline-flex;
+        padding: 2px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .range button {
+        padding: 4px 10px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .range button.on {
+        background: var(--bg);
+        color: var(--fg);
+        font-weight: 600;
+      }
+
+      .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      thead th {
+        padding: 10px 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+        border-bottom: 1px solid var(--line);
+      }
+
+      thead th.site,
+      tbody th.site {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--card);
+        text-align: left;
+      }
+
+      thead th.site {
+        padding-left: 16px;
+      }
+
+      tbody th.site {
+        padding: 8px 16px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      tbody td {
+        padding: 8px 4px;
+        text-align: center;
+        border-top: 1px solid var(--line);
+      }
+
+      tbody tr:first-child td {
+        border-top: 0;
+      }
+
+      td.today,
+      th.today {
+        background: var(--today);
+      }
+
+      thead th.today {
+        color: var(--fg);
+        font-weight: 600;
+      }
+
+      .cell {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        font-size: 13px;
+        line-height: 1;
+      }
+
+      .cell.ok {
+        color: var(--ok);
+      }
+
+      .cell.fail {
+        color: var(--fail);
+        background: rgba(209, 36, 47, 0.12);
+      }
+
+      .cell.miss {
+        color: var(--muted);
+        opacity: 0.5;
+      }
+
+      button.cell {
+        padding: 0;
+        border: 0;
+        font-family: inherit;
+        cursor: pointer;
+      }
+
+      button.cell:hover {
+        background: rgba(209, 36, 47, 0.24);
+      }
+
+      .empty {
+        padding: 40px 20px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .detail {
+        margin-top: 16px;
+        padding: 12px 16px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--fail);
+        border-radius: 8px;
+        font-size: 13px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .detail .meta {
+        margin-bottom: 4px;
+        color: var(--muted);
+      }
+
+      footer {
+        display: flex;
+        gap: 18px;
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      footer i {
+        margin-right: 4px;
+        font-style: normal;
+      }
+
+      footer .ok {
+        color: var(--ok);
+      }
+
+      footer .fail {
+        color: var(--fail);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>PT 签到</h1>
+      <div class="range" id="range">
+        <button type="button" data-days="7">7 天</button>
+        <button type="button" data-days="14" class="on">14 天</button>
+        <button type="button" data-days="30">30 天</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="table-wrap" id="table-wrap"></div>
+      <div class="detail" id="detail" hidden></div>
+    </main>
+
+    <script>
+      const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+      const range = document.getElementById("range");
+      const wrap = document.getElementById("table-wrap");
+      const detail = document.getElementById("detail");
+
+      let days = 14;
+
+      range.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-days]");
+        if (!button) {
+          return;
+        }
+        days = Number(button.dataset.days);
+        for (const el of range.querySelectorAll("button")) {
+          el.classList.toggle("on", el === button);
+        }
+        load();
+      });
+
+      async function load() {
+        wrap.replaceChildren(message("加载中…"));
+        try {
+          const response = await fetch(`/api/history?days=${days}`, {
+            cache: "no-store",
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          render(await response.json());
+        } catch (error) {
+          wrap.replaceChildren(message(`接口挂了：${error.message}`));
+        }
+      }
+
+      function render(data) {
+        const runs = Array.isArray(data.runs) ? data.runs : [];
+        if (runs.length === 0) {
+          wrap.replaceChildren(
+            message("cron 每天 0 点（香港时间）跑一次，跑完这里就有数据。"),
+          );
+          return;
+        }
+
+        const dates = [];
+        for (let offset = data.days - 1; offset >= 0; offset -= 1) {
+          dates.push(shiftDate(data.today, -offset));
+        }
+
+        const byDate = new Map(runs.map((run) => [run.date, run]));
+        const sites = [];
+        for (const run of runs) {
+          for (const result of run.results) {
+            if (!sites.includes(result.name)) {
+              sites.push(result.name);
+            }
+          }
+        }
+
+        detail.hidden = true;
+        wrap.replaceChildren(buildTable(data.today, dates, sites, byDate));
+      }
+
+      function buildTable(today, dates, sites, byDate) {
+        const table = document.createElement("table");
+
+        const headRow = table.createTHead().insertRow();
+        headRow.append(headCell("站点", true));
+        for (const date of dates) {
+          const cell = headCell(date.slice(5), false);
+          cell.title = `${date} 周${WEEKDAYS[weekday(date)]}`;
+          if (date === today) {
+            cell.classList.add("today");
+          }
+          headRow.append(cell);
+        }
+
+        const body = table.createTBody();
+        for (const site of sites) {
+          const row = body.insertRow();
+          const nameCell = document.createElement("th");
+          nameCell.scope = "row";
+          nameCell.className = "site";
+          nameCell.textContent = site;
+          row.append(nameCell);
+
+          for (const date of dates) {
+            const cell = row.insertCell();
+            if (date === today) {
+              cell.classList.add("today");
+            }
+            const result = byDate
+              .get(date)
+              ?.results.find((item) => item.name === site);
+            cell.append(cellContent(date, site, result));
+          }
+        }
+
+        return table;
+      }
+
+      function cellContent(date, site, result) {
+        if (!result) {
+          return span("cell miss", "·");
+        }
+        if (result.ok) {
+          const ok = span("cell ok", "✓");
+          ok.title = "成功";
+          return ok;
+        }
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "cell fail";
+        button.textContent = "✗";
+        button.title = result.message ?? "没有记录到原因";
+        button.addEventListener("click", () => {
+          showDetail(date, site, result.message);
+        });
+        return button;
+      }
+
+      function showDetail(date, site, reason) {
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = `${date} 周${WEEKDAYS[weekday(date)]} · ${site}`;
+
+        const text = document.createElement("div");
+        text.textContent = reason ?? "没有记录到失败原因";
+
+        detail.replaceChildren(meta, text);
+        detail.hidden = false;
+      }
+
+      function headCell(text, isSite) {
+        const cell = document.createElement("th");
+        cell.scope = "col";
+        cell.textContent = text;
+        if (isSite) {
+          cell.className = "site";
+        }
+        return cell;
+      }
+
+      function span(className, text) {
+        const el = document.createElement("span");
+        el.className = className;
+        el.textContent = text;
+        return el;
+      }
+
+      function message(text) {
+        const el = document.createElement("div");
+        el.className = "empty";
+        el.textContent = text;
+        return el;
+      }
+
+      function weekday(date) {
+        return new Date(`${date}T00:00:00Z`).getUTCDay();
+      }
+
+      function shiftDate(date, delta) {
+        const value = new Date(`${date}T00:00:00Z`);
+        value.setUTCDate(value.getUTCDate() + delta);
+        return value.toISOString().slice(0, 10);
+      }
+
+      load();
+    </script>
+  </body>
+</html>

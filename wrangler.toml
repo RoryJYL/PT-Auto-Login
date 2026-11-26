@@ -7,6 +7,10 @@ compatibility_flags = ["nodejs_compat"]
 [observability]
 enabled = true
 
+# 配了 assets 之后，默认先匹配静态文件，匹配不到才进 Worker 的 fetch
+[assets]
+directory = "./public"
+
 [[kv_namespaces]]
 binding = "PAL"
 id = "dc2d2a2880fe409183508e2cda96282e"
