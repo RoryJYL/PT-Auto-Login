@@ -5,6 +5,7 @@ export type SiteConfig = {
 }
 
 export type TaskConfig = SiteConfig & {
+  /** 启动前随机等待的毫秒数，把各站散开，避免整点撞限流 */
   delay: number
 }
 

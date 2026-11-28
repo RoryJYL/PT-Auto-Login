@@ -6,6 +6,8 @@ import type { AppEnv, RunRecord, SiteConfig } from './type'
 const DEFAULT_DAYS = 14
 /** 和 KV 的 90 天 TTL 对齐，读更早的也没意义 */
 const MAX_DAYS = 90
+/** 每个站在 cron 后随机散开 0–5 分钟：整点是站点限流最狠的时候，没必要凑上去 */
+const MAX_START_DELAY = 5 * 60_000
 
 export default {
   async fetch(request, env): Promise<Response> {
@@ -36,7 +38,7 @@ export default {
       const results = await runCookieTasks(
         siteConfigs.map((siteConfig) => ({
           ...siteConfig,
-          delay: Math.floor(Math.random() * 100),
+          delay: Math.floor(Math.random() * MAX_START_DELAY),
         })),
       )
 
